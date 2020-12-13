@@ -8,7 +8,7 @@
 
 import sys
 import os
-
+import time
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.join(current_dir, '..')
@@ -21,7 +21,7 @@ from nebula2.mclient import MetaCache
 
 class TestMetaCache(object):
     @classmethod
-    def setup_class(self):
+    def setup_class(cls):
         # create schema
         try:
             conn = Connection()
@@ -39,9 +39,10 @@ class TestMetaCache(object):
                                 'CREATE EDGE IF NOT EXISTS edge22(name string);')
             assert resp.error_code == 0
             conn.close()
-            self.meta_cache = MetaCache([('127.0.0.1', 45500),
-                                         ('127.0.0.1', 45501),
-                                         ('127.0.0.1', 45501)], 50000)
+            time.sleep(10)
+            cls.meta_cache = MetaCache([('127.0.0.1', 45500),
+                                        ('127.0.0.1', 45501),
+                                        ('127.0.0.1', 45501)], 50000)
         except Exception as x:
             import traceback
             print(traceback.format_exc())
@@ -149,5 +150,21 @@ class TestMetaCache(object):
         ports = [addr.port for addr in addresses]
         expected_hosts = [44500, 44500, 44500]
         assert ports == expected_hosts
+
+    def test_get_part_alloc(self):
+        part_alloc = self.meta_cache.get_part_alloc('test_meta_cache1')
+        assert len(part_alloc) == 100
+
+        expected_parts = [i for i in range(1, 101)]
+        parts = [part for part in part_alloc]
+        assert sorted(expected_parts) == sorted(parts)
+
+        hosts = [addr.host for addr in part_alloc[1]]
+        expected_hosts = ['storaged0', 'storaged1', 'storaged2']
+        assert sorted(hosts) == sorted(expected_hosts)
+
+        ports = [addr.port for addr in part_alloc[1]]
+        expected_ports = [44500, 44500, 44500]
+        assert sorted(ports) == sorted(expected_ports)
 
 
